@@ -36,6 +36,22 @@ def gerar_excel(df, nome_aba):
 
 # Configuração da Página
 st.set_page_config(page_title="Dashboard de Treinamentos", layout="wide")
+
+# --- CUSTOM CSS PARA MELHORAR OS FILTROS ---
+st.markdown("""
+    <style>
+    /* Aumenta a altura máxima das caixas de multiselect antes de aparecer rolagem */
+    .stMultiSelect div[role="listbox"] {
+        max-height: 400px !important;
+    }
+    /* Ajusta o espaçamento da barra lateral */
+    [data-testid="stSidebar"] .block-container {
+        padding-top: 1rem;
+        padding-bottom: 1rem;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
 st.title("📊 Painel de Controle: Evolução de Treinamentos")
 
 uploaded_file = st.file_uploader("Selecione a planilha", type=['xlsx', 'csv'])
@@ -62,7 +78,7 @@ if uploaded_file:
     
     df_clean = df.rename(columns=mapeamento_real)
     
-    # Aplicação da lógica de unificação
+    # Aplicação da lógica de unificação e categorização
     df_clean['Plano_Normalizado'] = df_clean['plano_titulo'].apply(normalizar_titulo)
     df_clean['Categoria'] = df_clean['Plano_Normalizado'].apply(categorizar_treinamento)
     df_clean['regional'] = df_clean['regional'].fillna('VERIFICAR').replace('NaN', 'VERIFICAR')
@@ -70,13 +86,14 @@ if uploaded_file:
 
     # --- SIDEBAR (FILTROS) ---
     st.sidebar.header("Filtros de Visão")
+    
     lista_regionais = sorted(df_clean['regional'].unique().tolist())
-    sel_regionais = st.sidebar.multiselect("Regionais", options=lista_regionais, default=lista_regionais)
+    sel_regionais = st.sidebar.multiselect("📍 Regionais", options=lista_regionais, default=lista_regionais)
     
     lista_planos = sorted(df_clean['Plano_Normalizado'].unique().tolist())
-    sel_planos = st.sidebar.multiselect("Planos (Unificados)", options=lista_planos, default=lista_planos)
+    sel_planos = st.sidebar.multiselect("📚 Planos (Unificados)", options=lista_planos, default=lista_planos)
     
-    sel_status = st.sidebar.multiselect("Status de Conclusão", options=sorted(df_clean['Status_Filtro'].unique().tolist()), default=df_clean['Status_Filtro'].unique().tolist())
+    sel_status = st.sidebar.multiselect("🏁 Status de Conclusão", options=sorted(df_clean['Status_Filtro'].unique().tolist()), default=df_clean['Status_Filtro'].unique().tolist())
 
     # Aplicação dos Filtros
     df_filtrado = df_clean[
@@ -99,7 +116,7 @@ if uploaded_file:
 
     st.divider()
     
-    # --- SEÇÃO 1: RESUMO POR REGIONAL (COM EXPORTAÇÃO) ---
+    # --- SEÇÃO 1: RESUMO POR REGIONAL ---
     st.subheader("📍 Resumo Executivo por Regional")
     
     resumo_regional = df_consolidado.groupby('regional').agg(
@@ -107,7 +124,6 @@ if uploaded_file:
         progresso_medio=('progresso', 'mean')
     ).reset_index()
 
-    # Botão de exportação específico para o resumo regional
     st.download_button(
         label="📥 Exportar Resumo das Regionais (Excel)",
         data=gerar_excel(resumo_regional, 'Resumo_Regional'),
@@ -127,7 +143,7 @@ if uploaded_file:
 
     st.divider()
 
-    # --- SEÇÃO 2: DETALHAMENTO POR TÉCNICO (COM EXPORTAÇÃO) ---
+    # --- SEÇÃO 2: DETALHAMENTO POR TÉCNICO ---
     st.subheader("📋 Status Detalhado por Técnico")
     
     busca = st.text_input("🔍 Pesquisar por Nome ou E-mail")
@@ -138,7 +154,6 @@ if uploaded_file:
             (df_consolidado['email'].str.contains(busca, case=False, na=False))
         ]
 
-    # Botão de exportação para o detalhamento completo
     st.download_button(
         label="📥 Exportar Detalhamento de Técnicos (Excel)",
         data=gerar_excel(df_consolidado, 'Detalhamento'),
